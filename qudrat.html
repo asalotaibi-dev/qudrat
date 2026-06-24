@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شبكة القدرات الذكية</title>
+
+<style>
+body{
+margin:0;
+font-family:tahoma;
+background:#f5f5f5;
+text-align:center;
+}
+
+.tabs{
+display:flex;
+flex-wrap:wrap;
+background:#1f1f1f;
+color:white;
+}
+
+.tab{
+flex:1;
+padding:10px;
+font-size:13px;
+cursor:pointer;
+}
+
+.tab.active{
+background:#0a84ff;
+}
+
+.card{
+background:white;
+margin:12px;
+padding:18px;
+border-radius:12px;
+box-shadow:0 2px 10px rgba(0,0,0,0.1);
+}
+
+.q{
+font-size:26px;
+margin:20px;
+}
+
+input{
+font-size:22px;
+width:130px;
+text-align:center;
+}
+
+button{
+margin-top:10px;
+padding:10px 20px;
+font-size:16px;
+}
+
+#result{
+margin-top:10px;
+font-size:16px;
+min-height:40px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="tabs">
+<div class="tab active" onclick="setTab(0)">الضرب</div>
+<div class="tab" onclick="setTab(1)">القسمة</div>
+<div class="tab" onclick="setTab(2)">الأرقام</div>
+<div class="tab" onclick="setTab(3)">الأوليات</div>
+<div class="tab" onclick="setTab(4)">السياقات</div>
+</div>
+
+<div class="card">
+<div class="q" id="question">...</div>
+
+<input id="answer" type="number">
+<br>
+<button onclick="check()">إجابة</button>
+
+<div id="result"></div>
+</div>
+
+<script>
+
+/* ---------------- MEMORY SYSTEM ---------------- */
+
+let stats = JSON.parse(localStorage.getItem("stats") || "{}");
+
+function now(){ return Date.now(); }
+
+function get(id){
+if(!stats[id]){
+stats[id]={
+correct:0,
+wrong:0,
+streak:0,
+interval:0.01,
+nextDue:0,
+lastSeen:0
+};
+}
+return stats[id];
+}
+
+function update(id, correct){
+let s = get(id);
+s.lastSeen = now();
+
+if(correct){
+s.correct++;
+s.streak++;
+s.interval = Math.min(s.interval * 2, 30);
+}else{
+s.wrong++;
+s.streak = 0;
+s.interval = 0.01;
+}
+
+s.nextDue = now() + s.interval * 24*60*60*1000;
+
+localStorage.setItem("stats", JSON.stringify(stats));
+}
+
+function due(id){
+return now() >= get(id).nextDue;
+}
+
+/* ---------------- CORE DATA ---------------- */
+
+const core = [24,36,48,60,72,75,80,90,96,100,120,144,180,240,360];
+const primes = [2,3,5,7,11,13,17,19];
+
+let tab = 0;
+let current = {};
+let count = 0;
+const MAX = 100;
+
+/* ---------------- QUESTION GENERATOR ---------------- */
+
+function gen(prev){
+
+let n;
+
+if(tab===0){
+let a = Math.floor(Math.random()*12)+1;
+let b = Math.floor(Math.random()*12)+1;
+return {id:`m_${a}_${b}`, q:`${a} × ${b}`, a:a*b};
+}
+
+if(tab===1){
+let b = Math.floor(Math.random()*12)+1;
+let a = b*(Math.floor(Math.random()*12)+1);
+return {id:`d_${a}_${b}`, q:`${a} ÷ ${b}`, a:a/b};
+}
+
+if(tab===2){
+n = core[Math.floor(Math.random()*core.length)];
+return {id:`c_${n}`, q:`25% من ${n}`, a:n/4};
+}
+
+if(tab===3){
+n = primes[Math.floor(Math.random()*primes.length)];
+return {id:`p_${n}`, q:`${n} × 2`, a:n*2};
+}
+
+if(tab===4){
+n = core[Math.floor(Math.random()*core.length)];
+let t = Math.floor(Math.random()*3);
+
+if(t===0) return {id:`s_${n}`, q:`25% من ${n}`, a:n/4};
+if(t===1) return {id:`s_${n}_d`, q:`${n} ÷ 5`, a:n/5};
+return {id:`s_time`, q:`60 دقيقة = كم ثانية؟`, a:3600};
+}
+
+}
+
+/* ---------------- CHAIN LOGIC ---------------- */
+
+function nextQuestion(){
+if(count>=MAX){
+document.getElementById("question").innerText="انتهى الاختبار";
+return;
+}
+
+let q = gen(current);
+
+/* إذا مو مستحق → حاول غيره */
+if(!due(q.id)){
+q = gen(current);
+}
+
+current = q;
+count++;
+
+document.getElementById("question").innerText =
+`(${count}/100) ` + q.q;
+
+document.getElementById("answer").value="";
+document.getElementById("result").innerText="";
+}
+
+/* ---------------- CHECK ---------------- */
+
+function check(){
+
+let val = Number(document.getElementById("answer").value);
+
+let ok = (val === current.a);
+
+update(current.id, ok);
+
+if(ok){
+document.getElementById("result").innerHTML =
+"✅ صحيح";
+}else{
+document.getElementById("result").innerHTML =
+`❌ خطأ<br>✔ الإجابة: ${current.a}<br>📌 سأعود لهذا السؤال لاحقًا للتأكد`;
+}
+
+setTimeout(nextQuestion, 700);
+}
+
+/* ---------------- TABS ---------------- */
+
+function setTab(t){
+tab = t;
+document.querySelectorAll(".tab").forEach((e,i)=>{
+e.classList.toggle("active", i===t);
+});
+count=0;
+nextQuestion();
+}
+
+nextQuestion();
+
+</script>
+
+</body>
+</html>
