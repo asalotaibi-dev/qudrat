@@ -54,12 +54,25 @@ button{
 margin-top:10px;
 padding:10px 20px;
 font-size:16px;
+cursor:pointer;
+}
+
+button:disabled{
+opacity:0.5;
+cursor:not-allowed;
 }
 
 #result{
 margin-top:10px;
 font-size:16px;
 min-height:40px;
+}
+
+.button-container{
+display:flex;
+gap:10px;
+justify-content:center;
+flex-wrap:wrap;
 }
 </style>
 </head>
@@ -79,7 +92,11 @@ min-height:40px;
 
 <input id="answer" type="number">
 <br>
-<button onclick="check()">إجابة</button>
+
+<div class="button-container">
+<button id="checkBtn" onclick="check()">إجابة</button>
+<button id="nextBtn" onclick="nextQuestion()" style="display:none;">التالي</button>
+</div>
 
 <div id="result"></div>
 </div>
@@ -89,6 +106,7 @@ min-height:40px;
 /* ---------------- MEMORY SYSTEM ---------------- */
 
 let stats = JSON.parse(localStorage.getItem("stats") || "{}");
+let answered = false; // متغير لتتبع هل تم الإجابة على السؤال
 
 function now(){ return Date.now(); }
 
@@ -183,6 +201,8 @@ return {id:`s_time`, q:`60 دقيقة = كم ثانية؟`, a:3600};
 function nextQuestion(){
 if(count>=MAX){
 document.getElementById("question").innerText="انتهى الاختبار";
+document.getElementById("checkBtn").style.display="none";
+document.getElementById("nextBtn").style.display="none";
 return;
 }
 
@@ -195,23 +215,31 @@ q = gen(current);
 
 current = q;
 count++;
+answered = false;
 
 document.getElementById("question").innerText =
 `(${count}/100) ` + q.q;
 
 document.getElementById("answer").value="";
 document.getElementById("result").innerText="";
+document.getElementById("checkBtn").style.display="inline-block";
+document.getElementById("nextBtn").style.display="none";
+document.getElementById("answer").focus();
 }
 
 /* ---------------- CHECK ---------------- */
 
 function check(){
 
+if(answered) return; // منع الضغط على الزر مرتين
+
 let val = Number(document.getElementById("answer").value);
 
 let ok = (val === current.a);
 
 update(current.id, ok);
+
+answered = true;
 
 if(ok){
 document.getElementById("result").innerHTML =
@@ -221,7 +249,9 @@ document.getElementById("result").innerHTML =
 `❌ خطأ<br>✔ الإجابة: ${current.a}<br>📌 سأعود لهذا السؤال لاحقًا للتأكد`;
 }
 
-setTimeout(nextQuestion, 700);
+// إظهار زر التالي وإخفاء زر الإجابة
+document.getElementById("checkBtn").style.display="none";
+document.getElementById("nextBtn").style.display="inline-block";
 }
 
 /* ---------------- TABS ---------------- */
@@ -232,6 +262,7 @@ document.querySelectorAll(".tab").forEach((e,i)=>{
 e.classList.toggle("active", i===t);
 });
 count=0;
+answered=false;
 nextQuestion();
 }
 
